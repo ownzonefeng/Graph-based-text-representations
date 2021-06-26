@@ -10,7 +10,7 @@ from pipeline.loss import EuclideanGMM
 from pipeline.metrics import evaluate_similarity
 
 def main(args):
-    with open(args.dictionary, 'r') as f:
+    with open(os.path.join(args.model_path, 'dictionary.json'), 'r') as f:
         dictionary = json.load(f)
     word_to_id = dictionary["dictionary"]
     with open(os.path.join(args.model_path, 'args.json'), 'r') as f:
@@ -50,7 +50,6 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--model_path', type=str, default='lightning_logs/version_0')
-    parser.add_argument('--dictionary', type=str, default='dictionary.json')
     parser.add_argument('--similarity', action='store_true')
     parser.add_argument('--similarity_dataset', type=str, default='corpus/evaluation_data/similarity_data/*.txt')
 
