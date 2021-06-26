@@ -62,4 +62,4 @@ For the full results on word similarity and interpretability, please refer to th
 - [Wentao Feng](https://www.linkedin.com/in/wentaofeng)
 
 ## License
-The content of this repository is released under the terms of the [MIT license](LICENSE.txt).
+The content of this repository is released under the terms of the [MIT license](LICENSE).
