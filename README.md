@@ -1,2 +1,5 @@
-# Graph-based-text-representations
-The official implementaion for: Graph-based text representations (EPFL Master Thesis)
+# Graph-based text representations
+
+This repository is the official implementation of my Master's thesis [Graph-based text representations](https://infoscience.epfl.ch/) 
+
+(Paper link will be added in the near future). 

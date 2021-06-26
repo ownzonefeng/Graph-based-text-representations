@@ -1,0 +1,10 @@
+anchoring: both
+center: 1.2
+dict_size: 23190
+freeze_covar: true
+lr: 0.005
+n_dims: 10
+n_gaussians: 25
+radius: 0.2
+rate_adjust: StepLR
+target_coef: 1
