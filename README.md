@@ -48,13 +48,20 @@ You can download pretrained models [here](lightning_logs/pretrained/)
 
 ## Results
 
-Our model achieves the following performance on [Word similarity](corpus/evaluation_data/similarity_data/).
-
+Our model achieves the following performance on:
+### Word similarity
 |                     |   Corr. Coef. |   Total |   Valid | Ratio   |
 |:--------------------|--------------:|--------:|--------:|:--------|
 | EN-MEN-TR-3k.txt    |        0.5041 |    3000 |    2315 | 77.17%  |
 | EN-WS-353-ALL.txt   |        0.5212 |     353 |     323 | 91.50%  |
 | EN-WS-353-SIM.txt   |        0.5455 |     203 |     185 | 91.13%  |
+### Interpretability
+Top-activated nodes for the word `water`:
+- salmon
+- lettuce
+- fish
+- tea
+- rack
 
 For the full results on word similarity and interpretability, please refer to the paper.
 
