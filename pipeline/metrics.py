@@ -9,6 +9,23 @@ from tqdm import tqdm
 
 
 def evaluate_similarity(model, dictionary, distfunc, files):
+    r"""Evaluate the model in terms of word similarity task
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The pytorch module to produce word embedding.
+    dictionary : dict
+        A dictionary mapping word to id.
+    distfunc : callable
+        Call in this way callable(*left, *right). A distance function to compute the distance between two embeddings. Lower return means better similarity.
+    files : Union[str, List[str]]
+        The paths to the similarity datasets. glob-styled input is acceptable.
+    
+    Returns
+    ----------
+    pandas.DataFrame
+    """
     if isinstance(files, str):
         files = [files]
     results = {}

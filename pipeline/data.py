@@ -19,6 +19,28 @@ stop_words = spacy.load('en_core_web_trf').Defaults.stop_words
 
 class SkipGram(TensorDataset):
     def __init__(self, corpus_files: Union[str, List[str]], language: str='en_core_web_trf', min_freq=12, num_ns=5, use_cache=True, reload=False):
+        r"""Build a Skip-gram style dataset
+        This class is the child of torch.utils.data.TensorDataset. 
+
+        Parameters
+        ----------
+        corpus_files : Union[str, List[str]]
+            The paths to the corpus files. glob-styled input is acceptable.
+        language : str
+            Choose a tokenizer. Available: 'en_core_web_trf', 'basic_english'.
+        min_freq : int
+            Minimum frequency of appearing to keep that word in the dictionary instead of treating it as <UNK>.
+        num_ns : int
+            The number of negative sampling.
+        use_cache : bool
+            Whether to cache processed data or use existing cache in the current folder.
+        reload : bool
+            Whether to force reload and re-process the corpus file. Ignore existing cache.
+        
+        Returns
+        ----------
+        torch.utils.data.TensorDataset
+        """
         self.language = language
         cached_list = ['cached_dictionary.json', 'cached_target.pt', 'cached_context.pt', 'cached_label.pt', 'cached_id_to_freq.pt', 'cached_id_to_prob.pt']
 
@@ -64,6 +86,7 @@ class SkipGram(TensorDataset):
 
 
     def subsampling(self):
+        r"""Call to subsample data"""
         if not self.subsampled:
             rand_var = torch.rand(self.text_ids.shape)
             prob = self.id_to_prob[self.text_ids]
@@ -72,11 +95,21 @@ class SkipGram(TensorDataset):
 
 
     def generate_pos_sample(self, before=2, after=2, subsampling=True):
-        """ Generates a Nx2 tensor containing indices of words from the text. For each word inside the text: we take
-        the "context_before" words before and generate "context_before" pairs of words and we take the 
-        "context_after" words after and  generate "context_after" pairs of words. With the default parameters: 
-        context_before=2, context_after=2, the total number of positive samples N is approximativly N*#of not removed 
-        tokens insed the text
+        r"""Generate positive examples
+        A positive example is a pair of target word and context word.
+
+        Parameters
+        ----------
+        before : int
+            The number of words before target word that are context words.
+        after : int
+            The number of words after target word that are context words.
+        subsampling: bool
+            Whether to subsample words.
+        
+        Returns
+        ----------
+        torch.Tensor : (N, 2) a row is a pair of words.
         """
         if subsampling:
             self.subsampling()
@@ -99,8 +132,18 @@ class SkipGram(TensorDataset):
 
 
     def generate_neg_sample(self, context, num_ns):
-        """ Generates a nb_sample x nb_neg tensor containing random indices of words from the vocabulary, 
-        this tensor is used as training data for our model
+        r"""Generate negative examples
+
+        Parameters
+        ----------
+        context : torch.Tensor
+            Context word vector (N, ).
+        num_ns : int
+            The number of negative samples per positive sample.
+        
+        Returns
+        ----------
+        torch.Tensor : (N, num_ns)
         """
         context = context.unsqueeze(1)
         number_samples = context.shape[0]
@@ -114,6 +157,7 @@ class SkipGram(TensorDataset):
 
 
     def __call__(self, tokens):
+        r"""Tokenize and convert tokens to ids"""
         if isinstance(tokens, str):
             tokens = tokens.lower()
             tokenizer = tokenizer_collection[self.language]
@@ -129,6 +173,7 @@ class SkipGram(TensorDataset):
     
 
     def lookup_words(self, ids: Union[int, List[int]]):
+        r"""Find words based on ids"""
         if isinstance(ids, int):
             return [self.id_to_word.get(ids, "<unk>")]
         elif isinstance(ids, Iterable):
@@ -142,7 +187,9 @@ class SkipGram(TensorDataset):
 
     @staticmethod
     def subsample_probability(frequency, sampling_factor):
-        """Generates a word rank-based probabilistic sampling table.
+        r"""
+        Generates a word rank-based probabilistic sampling table
+        More information: https://www.tensorflow.org/api_docs/python/tf/keras/preprocessing/sequence/make_sampling_table
         """
         frequency = frequency / torch.sum(frequency)
         prob = (torch.min(torch.FloatTensor([1.0]), torch.sqrt(frequency / sampling_factor) / (frequency / sampling_factor)))
@@ -152,6 +199,7 @@ class SkipGram(TensorDataset):
 
     @staticmethod
     def _build_counter_process(path, language='en_core_web_trf'):
+        r"""Count word's frequency"""
         tokenizer = tokenizer_collection[language]
         cnt = Counter()
         with open(path,'r',encoding='utf-8') as f:
@@ -163,6 +211,7 @@ class SkipGram(TensorDataset):
 
     @staticmethod
     def build_counter(files, language='en_core_web_trf'):
+        r"""Count word's frequency from multiple files"""
         if isinstance(files, str):
             return SkipGram._build_counter_process(files, language)
 
@@ -178,6 +227,27 @@ class SkipGram(TensorDataset):
 
     @staticmethod
     def compile_vocab(counter, min_freq=12, threshold=1e-5):
+        r"""Compile the counter (collections.Counter) to get vocabulary and related informantion
+
+        Parameters
+        ----------
+        counter : collections.Counter
+            Mapping word to frequency.
+        min_freq : int
+            Minimum frequency of appearing to keep that word in the dictionary instead of treating it as <UNK>.
+        threshold : float
+            Subsampling factor. check: subsample_probability(frequency, sampling_factor).
+        
+        Returns
+        ----------
+        dict : Mapping word to id.
+
+        dict : Mapping id to word.
+
+        torch.Tensor : Mapping id to frequency.
+
+        torch.Tensor : Mapping id to subsampling table.
+        """
         word_to_id = {"<unk>":0}
         id_to_word = {0:"<unk>"}
         id_to_freq = [1]
@@ -199,6 +269,7 @@ class SkipGram(TensorDataset):
 
     @staticmethod
     def _text_to_id(path, word_to_id, language: str='en_core_web_trf'):
+        r"""Convert text into ids"""
         tokenizer = tokenizer_collection[language]
         ids = []
         with open(path,'r',encoding='utf-8') as f:
@@ -211,6 +282,7 @@ class SkipGram(TensorDataset):
 
     @staticmethod
     def convert_text_to_ids(files, word_to_id, language: str='en_core_web_trf'):
+        r"""Convert text into ids from multiple files"""
         if isinstance(files, str):
             ids = SkipGram._text_to_id(files, word_to_id, language)
             return torch.LongTensor(ids)

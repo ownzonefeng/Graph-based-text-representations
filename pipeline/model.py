@@ -11,83 +11,44 @@ def truncated_normal(size, center, radius, dtype):
     return torch.from_numpy(values.astype(dtype))
 
 
-def DotProduct(tensor1, tensor2):
-    tensor1 = tensor1.unsqueeze(-2)
-    tensor2 = tensor2.unsqueeze(-1)
-    return (tensor1 @ tensor2)[..., 0, 0]
-
-
-class Word2Vec(pl.LightningModule):
-    def __init__(self, dict_size, n_dims, lr=0.01, rate_adjust='CosineAnnealingLR', target_coef=1, **kwargs):
-        super(Word2Vec, self).__init__()
-        
-        self.n_dims = n_dims
-        self.embd_layers = nn.ModuleDict({
-                'target': nn.Embedding(dict_size, n_dims),
-                'context': nn.Embedding(dict_size, n_dims)
-        })
-
-
-        self.lr = lr
-        self.rate_adjust = rate_adjust
-        self.target_coef = target_coef
-        
-        self.distfunc = DotProduct
-        self.lossfunc = nn.BCELoss(reduction='none')
-
-        self.save_hyperparameters('dict_size', 'n_dims', 'lr', 'rate_adjust', 'target_coef')
-    
-
-    def forward(self, words):
-        return self.embd_layers['target'](words).detach(),
-    
-
-    def training_step(self, batch, batch_idx):
-        target, context, label = batch
-        _, num_ns = context.shape
-        target = target.expand(-1, num_ns)
-        label = label.float()
-        target_vec, context_vec = self.embd_layers['target'](target), self.embd_layers['context'](context)
-
-        dist = self.distfunc(target_vec, context_vec)
-        self.log('positive_samples_distance', torch.mean(dist[:, 0]))
-        self.log('negative_samples_distance', torch.mean(dist[:, 1:]))
-
-        prob = torch.sigmoid(dist)
-        weight = torch.tensor([self.target_coef, 1, 1, 1, 1, 1], dtype=prob.dtype, device=prob.device).unsqueeze(0)
-        loss = self.lossfunc(prob, label)
-        loss = torch.mean(loss * weight)
-        self.log('train_loss', loss)
-        return loss
-
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
-        if self.rate_adjust == 'StepLR':
-            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.75)
-        elif self.rate_adjust == 'CosineAnnealingLR':
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=self.lr/10)
-        elif self.rate_adjust == 'CyclicLR':
-            scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.lr/10, max_lr=self.lr, step_size_up=10, mode="triangular2", cycle_momentum=False)
-        elif self.rate_adjust == 'none':
-            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=1) # EQUAL TO NO SCHEDULER!
-        return [optimizer], [scheduler]
-    
-
-    @staticmethod
-    def add_model_specific_args(parent_parser):
-        parser = parent_parser.add_argument_group("Word2Vec")
-        parser.add_argument('--n_dims', type=int, default=10)
-        parser.add_argument('--lr', type=float, default=0.01)
-        parser.add_argument('--rate_adjust', type=str, default='CosineAnnealingLR')
-        parser.add_argument('--target_coef', type=int, default=1)
-        return parent_parser
-
-
 class Word2GMM(pl.LightningModule):
     def __init__(self, dict_size, n_gaussians, n_dims, center=1.2, radius=0.2, 
                  freeze_covar=True, anchors_embd=None, anchors_indices=None, anchoring='both',
                  lr=0.005, rate_adjust='StepLR', target_coef=1, **kwargs):
+        r"""Word2GMM: learning word to the mixtures of Gaussian on knowledge graph
+
+        Parameters
+        ----------
+        dict_size : int
+            The number of distinct words in the training corpus.
+        n_gaussians : int
+            The number of component in the GMM.
+        n_dims : int
+            The dimension of node embedding vector.
+        center : int
+            The amount of shifting truncated normal distribution.
+        radius : int
+            The amount of scaling truncated normal distribution.
+        free_covar : bool
+            Whether to freeze the learning of covariance matrix.
+        anchor_embd : torch.Tensor
+            The embedding of anchors.
+        anchor_indices: torch.Tensor
+            The indices of anchors in the dictionary.
+        anchoring : str
+            The pattern of anchoring words. Available: 'target', 'context', 'both'.
+        lr : float
+            The learning rate.
+        rate_adjust : str
+            Choose the learning rate scheduler. Available: 'StepLR', 'CosineAnnealingLR', 'CyclicLR', 'none'.
+        target_coef : float
+            The weight used in computing the distance between target word and context word. 
+            Larger number forces the model focusing more on target word and context word. 
+
+        Returns
+        ----------
+        pytorch_lightning.LightningModule
+        """
         super(Word2GMM, self).__init__()
         
         self.n_gaussians = n_gaussians
@@ -203,4 +164,77 @@ class Word2GMM(pl.LightningModule):
         parser.add_argument('--rate_adjust', type=str, default='StepLR')
         parser.add_argument('--target_coef', type=int, default=1)
         parser.add_argument('--anchoring', type=str, default='both')
+        return parent_parser
+
+
+def DotProduct(tensor1, tensor2):
+    tensor1 = tensor1.unsqueeze(-2)
+    tensor2 = tensor2.unsqueeze(-1)
+    return (tensor1 @ tensor2)[..., 0, 0]
+
+
+class Word2Vec(pl.LightningModule):
+    def __init__(self, dict_size, n_dims, lr=0.01, rate_adjust='CosineAnnealingLR', target_coef=1, **kwargs):
+        super(Word2Vec, self).__init__()
+        
+        self.n_dims = n_dims
+        self.embd_layers = nn.ModuleDict({
+                'target': nn.Embedding(dict_size, n_dims),
+                'context': nn.Embedding(dict_size, n_dims)
+        })
+
+
+        self.lr = lr
+        self.rate_adjust = rate_adjust
+        self.target_coef = target_coef
+        
+        self.distfunc = DotProduct
+        self.lossfunc = nn.BCELoss(reduction='none')
+
+        self.save_hyperparameters('dict_size', 'n_dims', 'lr', 'rate_adjust', 'target_coef')
+    
+
+    def forward(self, words):
+        return self.embd_layers['target'](words).detach(),
+    
+
+    def training_step(self, batch, batch_idx):
+        target, context, label = batch
+        _, num_ns = context.shape
+        target = target.expand(-1, num_ns)
+        label = label.float()
+        target_vec, context_vec = self.embd_layers['target'](target), self.embd_layers['context'](context)
+
+        dist = self.distfunc(target_vec, context_vec)
+        self.log('positive_samples_distance', torch.mean(dist[:, 0]))
+        self.log('negative_samples_distance', torch.mean(dist[:, 1:]))
+
+        prob = torch.sigmoid(dist)
+        weight = torch.tensor([self.target_coef, 1, 1, 1, 1, 1], dtype=prob.dtype, device=prob.device).unsqueeze(0)
+        loss = self.lossfunc(prob, label)
+        loss = torch.mean(loss * weight)
+        self.log('train_loss', loss)
+        return loss
+
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        if self.rate_adjust == 'StepLR':
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.75)
+        elif self.rate_adjust == 'CosineAnnealingLR':
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=self.lr/10)
+        elif self.rate_adjust == 'CyclicLR':
+            scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.lr/10, max_lr=self.lr, step_size_up=10, mode="triangular2", cycle_momentum=False)
+        elif self.rate_adjust == 'none':
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=1) # EQUAL TO NO SCHEDULER!
+        return [optimizer], [scheduler]
+    
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("Word2Vec")
+        parser.add_argument('--n_dims', type=int, default=10)
+        parser.add_argument('--lr', type=float, default=0.01)
+        parser.add_argument('--rate_adjust', type=str, default='CosineAnnealingLR')
+        parser.add_argument('--target_coef', type=int, default=1)
         return parent_parser

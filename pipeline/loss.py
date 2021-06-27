@@ -10,12 +10,24 @@ class EuclideanGMM(nn.Module):
 
 
     def forward(self, w1, mu1, sigma1, w2, mu2, sigma2):
+        r"""Compute Euclidean distance between two mixtures of Gaussian
+
+        Parameters
+        ----------
+        w1/w2 : torch.Tensor
+            (*, M, N) where * is one or more batch dimensions. The weight for the GMM
+        mu1/mu2 : torch.Tensor
+            (*, M, N) where * is one or more batch dimensions. The mean vectors for the GMM
+        sigma1/sigma2: torch.Tensor
+            (*, M, N) where * is one or more batch dimensions. The diagonal covariance matrix for the GMM
+        
+        Returns
+        ----------
+        torch.Tensor
+        """
         density_1 = EuclideanGMM.gaussian_cross_product(mu1, sigma1, mu1, sigma1)
         density_2 = EuclideanGMM.gaussian_cross_product(mu2, sigma2, mu2, sigma2)
         density_x = EuclideanGMM.gaussian_cross_product(mu1, sigma1, mu2, sigma2)
-        assert not torch.any(torch.logical_or(torch.isnan(density_1), torch.isinf(density_1)))
-        assert not torch.any(torch.logical_or(torch.isnan(density_2), torch.isinf(density_2)))
-        assert not torch.any(torch.logical_or(torch.isnan(density_x), torch.isinf(density_x)))
 
         w1_w1_cross = w1.unsqueeze(-1) @ w1.unsqueeze(-2)
         w2_w2_cross = w2.unsqueeze(-1) @ w2.unsqueeze(-2)
@@ -23,7 +35,6 @@ class EuclideanGMM(nn.Module):
 
         L2 = w1_w1_cross * density_1 + w2_w2_cross * density_2 - 2 * w1_w2_cross * density_x
         L2 = torch.sum(L2, dim=[-2, -1])
-        assert torch.all(L2 >= 0)
 
         if self.reduction == 'sum':
             L2 = torch.sum(L2)
