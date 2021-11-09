@@ -2,8 +2,8 @@
 
 This repository is the official implementation of the Master's thesis Graph-based text representations.
 
-([Paper](https://drive.google.com/file/d/1L-wptu1qi87QU3c0RsxBf_Vj8PLsbRQp/view?usp=sharing), 
-[Slides](https://drive.google.com/file/d/1OngnFnXvyJJ4pcRUycTFFuUfI9VYREjV/view?usp=sharing))
+([Paper](https://github.com/ownzonefeng/Graph-based-text-representations/blob/main/open%20access/Master_thesis_Wentao_Feng.pdf), 
+[Slides](https://github.com/ownzonefeng/Graph-based-text-representations/blob/main/open%20access/slides.pdf))
 ## Requirements
 
 To install requirements:
